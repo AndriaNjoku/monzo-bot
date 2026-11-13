@@ -13,6 +13,7 @@ import java.util.*;
 final class AndroidNotifications {
  static final String CHANNEL="budget-checks";
  static void check(Context context,JSONObject data) throws Exception {
+  JSONObject companion=data.optJSONObject("companionNotifications");if(companion!=null&&companion.optBoolean("enabled"))return;
   NotificationManager nm=context.getSystemService(NotificationManager.class);
   nm.createNotificationChannel(new NotificationChannel(CHANNEL,"Private budget check-ins",NotificationManager.IMPORTANCE_DEFAULT));
   boolean permission=Build.VERSION.SDK_INT<33||context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED;

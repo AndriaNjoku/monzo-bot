@@ -27,6 +27,16 @@ public final class CompanionToolsChecks {
         Map<String,String> raw=new HashMap<>(base.raw);raw.put("Time",time);
         return new Finance.Transaction(base.id,base.date,base.name,base.category,base.type,base.currency,base.amount,raw);
     }
+    private static Finance.Transaction foreign(String id,String date,String code,String amount,String type) {
+        Finance.Transaction base=tx(id,date,"Synthetic FX merchant","Synthetic FX category",type,-4444);
+        Map<String,String> raw=new HashMap<>(base.raw);if(code!=null)raw.put("Local currency",code);if(amount!=null)raw.put("Local amount",amount);
+        return new Finance.Transaction(base.id,base.date,base.name,base.category,base.type,base.currency,base.amount,raw);
+    }
+    private static JSONObject original(Finance.Transaction row,boolean labels)throws Exception{
+        List<Finance.Transaction> rows=Arrays.asList(row);
+        String ref=run("search_transactions","{}",rows,false).getJSONArray("transactions").getJSONObject(0).getString("ref");
+        return run("original_currency_details",new JSONObject().put("ref",ref).toString(),rows,labels);
+    }
     private static List<Finance.Transaction> fixture() {
         return Arrays.asList(
             tx("synthetic-source-id-1","2026-11-01","Synthetic Market","Personal category","Card payment",-1001),
@@ -49,7 +59,7 @@ public final class CompanionToolsChecks {
     public static void main(String[] ignored) throws Exception {
         checks=0;
         List<Finance.Transaction> rows=fixture();
-        JSONArray definitions=CompanionTools.definitions();equal(definitions.length(),5);
+        JSONArray definitions=CompanionTools.definitions();equal(definitions.length(),6);
         for(int i=0;i<definitions.length();i++) {
             JSONObject definition=definitions.getJSONObject(i);ok(definition.getString("type").equals("function"));
             JSONObject function=definition.getJSONObject("function"), parameters=function.getJSONObject("parameters");
@@ -149,6 +159,19 @@ public final class CompanionToolsChecks {
         List<Finance.Transaction> overflow=Arrays.asList(tx("synthetic-overflow1","2026-11-01","Example","General","Card payment",Long.MAX_VALUE),tx("synthetic-overflow2","2026-11-02","Example","General","Card payment",1));
         reject("summarize_transactions","{}",overflow);
         reject("summarize_transactions","{}",Arrays.asList(tx("synthetic-negative-overflow","2026-11-01","Example","General","Card payment",Long.MIN_VALUE)));
+        JSONObject foreign=original(foreign("synthetic-fx-source-id","2026-11-12","EUR","-12.34","Card payment"),false);
+        equal(foreign.getLong("accountAmountPence"),-4444);ok(foreign.getString("currency").equals("GBP"));ok(foreign.getString("accountCurrency").equals("GBP"));
+        ok(foreign.getString("localCurrency").equals("EUR"));ok(foreign.getString("localAmountDecimal").equals("-12.34"));ok(foreign.getString("localCurrencyStatus").equals("recorded"));ok(foreign.getString("localAmountStatus").equals("recorded"));
+        ok(foreign.isNull("exchangeRate"));ok(foreign.isNull("feePence"));ok(!foreign.getBoolean("exchangeRateInferred"));ok(!foreign.getBoolean("feeInferred"));ok(!foreign.has("name"));ok(!foreign.has("category"));ok(!foreign.has("type"));
+        ok(foreign.getJSONArray("evidenceRefs").getString(0).equals(foreign.getString("ref")));ok(foreign.getString("ref").matches("[0-9a-f]{16}"));
+        for(String secret:new String[]{"synthetic-fx-source-id","synthetic-private","synthetic-description","Synthetic FX merchant","Synthetic FX category"})ok(!foreign.toString().contains(secret));
+        JSONObject yen=original(foreign("synthetic-fx-yen","2026-11-12","JPY","-2000","Card payment"),true);ok(yen.getString("localAmountDecimal").equals("-2000"));ok(yen.getString("localAmountUnit").equals("decimal_original_currency_not_assumed_two_minor_digits"));ok(yen.has("name"));ok(!yen.toString().contains("synthetic-private"));
+        JSONObject missingFx=original(foreign("synthetic-fx-missing","2026-11-12",null,null,"Card payment"),false);ok(missingFx.isNull("localCurrency"));ok(missingFx.isNull("localAmountDecimal"));ok(missingFx.getString("localCurrencyStatus").equals("missing"));ok(missingFx.getString("localAmountStatus").equals("missing"));
+        JSONObject unsupportedFx=original(foreign("synthetic-fx-malformed","2026-11-12","private-invalid-code","synthetic-private-note-token","Card payment"),false);ok(unsupportedFx.isNull("localCurrency"));ok(unsupportedFx.isNull("localAmountDecimal"));ok(unsupportedFx.getString("localCurrencyStatus").equals("unsupported_code"));ok(unsupportedFx.getString("localAmountStatus").equals("unsupported_format"));ok(!unsupportedFx.toString().contains("private-invalid-code"));ok(!unsupportedFx.toString().contains("synthetic-private"));
+        JSONObject futureFx=original(foreign("synthetic-fx-future","2026-11-14","EUR","-10.00","Card payment"),false);ok(futureFx.getBoolean("recordedDateInFuture"));ok(!futureFx.getBoolean("countsAsObservedThroughToday"));ok(futureFx.getString("date").equals("2026-11-14"));
+        JSONObject potFx=original(foreign("synthetic-fx-pot","2026-11-12","EUR","-10.00","Pot transfer"),false);ok(potFx.getBoolean("potMovement"));
+        for(String ref:new String[]{"synthetic-fx-source-id","BADREF","0123456789ABCDEF","0000000000000000"})reject("original_currency_details",new JSONObject().put("ref",ref).toString(),rows);
+        reject("original_currency_details","{}",rows);reject("original_currency_details","{\"ref\":false}",rows);reject("original_currency_details","{\"ref\":\"0000000000000000\",\"query\":\"guessed name\"}",rows);
         // Returned JSON is independent of source evidence; labels-off policy cannot be enabled by a tool argument.
         ok(rows.get(0).name.equals("Synthetic Market"));ok(rows.get(0).raw.get("Notes and #tags").equals("synthetic-private-note-token"));
         System.out.println(checks+" companion tool checks passed; all synthetic and offline.");

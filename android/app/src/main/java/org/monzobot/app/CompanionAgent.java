@@ -94,7 +94,7 @@ public final class CompanionAgent {
    for(int i=0;i<checked.length();i++){
     JSONObject call=checked.getJSONObject(i),fn=call.getJSONObject("function"),result;
     try{String function=fn.getString("name");JSONObject arguments=new JSONObject(fn.getString("arguments"));
-     if(function.equals("assess_transaction")&&!refs.contains(arguments.optString("ref")))throw new IllegalArgumentException("Use a previously returned evidence reference.");
+     if((function.equals("assess_transaction")||function.equals("original_currency_details"))&&!refs.contains(arguments.optString("ref")))throw new IllegalArgumentException("Use a previously returned evidence reference.");
      if(plan!=null&&(function.equals("planning_context")||function.equals("budget_status")||function.equals("assess_transaction")||function.equals("review_payments")))result=CompanionPlanningTools.execute(function,arguments,transactions,overrides,today,plan,consent.labels);
      else result=CompanionTools.execute(function,arguments,transactions,overrides,today,consent.labels);
     }
@@ -129,7 +129,7 @@ public final class CompanionAgent {
    JSONObject fact=new JSONObject().put("toolCallId",id).put("path",path).put("value",value).put("sourceCoverage","unknown").put("sourceRetrievedAt",retrieved).put("evidenceRefs",new JSONArray(sourceRefs));
    if(source.has("scope"))fact.put("scope",source.get("scope"));
    JSONObject selectedContext=new JSONObject();
-   for(JSONObject ancestor:ancestors){if(ancestor.optJSONObject("scope")!=null)fact.put("scope",ancestor.getJSONObject("scope"));for(String contextKey:new String[]{"budgetIndex","from","to","date","category","name","type","currency","essentialByUser","dailyGuideScope","kind","cadence","lastSeen","nextEstimatedDate"})if(ancestor.has(contextKey)&&!(ancestor.get(contextKey) instanceof JSONObject)&&!(ancestor.get(contextKey) instanceof JSONArray))selectedContext.put(contextKey,ancestor.get(contextKey));}
+   for(JSONObject ancestor:ancestors){if(ancestor.optJSONObject("scope")!=null)fact.put("scope",ancestor.getJSONObject("scope"));for(String contextKey:new String[]{"budgetIndex","from","to","date","category","name","type","currency","accountCurrency","localCurrency","localAmountUnit","recordedDateInFuture","countsAsObservedThroughToday","essentialByUser","dailyGuideScope","kind","cadence","lastSeen","nextEstimatedDate"})if(ancestor.has(contextKey)&&!(ancestor.get(contextKey) instanceof JSONObject)&&!(ancestor.get(contextKey) instanceof JSONArray))selectedContext.put(contextKey,ancestor.get(contextKey));}
    fact.put("context",selectedContext);
    fact.put("unit",path.toLowerCase(java.util.Locale.ROOT).contains("pence")?"GBP_pence":value instanceof Number?"count_or_ratio":value instanceof Boolean?"flag":"source_text");
    fact.put("bankDataVerified",false).put("calculationFromImportedOrUserProvidedData",true);

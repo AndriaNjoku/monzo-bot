@@ -28,7 +28,7 @@ public final class CompanionAgentChecks {
   List<JSONObject> requests=new ArrayList<>();String secret="unit-test-key-only-header";
   CompanionAgent agent=new CompanionAgent((request,key)->{
    requests.add(new JSONObject(request.toString()));ok(key.equals(secret));ok(!request.toString().contains(secret));
-   if(requests.size()==1){ok(request.getString("tool_choice").equals("required"));ok(request.getJSONArray("tools").length()==5);return tools("call_summary","summarize_transactions","{}");}
+   if(requests.size()==1){ok(request.getString("tool_choice").equals("required"));ok(request.getJSONArray("tools").length()==6);return tools("call_summary","summarize_transactions","{}");}
    JSONArray messages=request.getJSONArray("messages");String evidence=messages.getJSONObject(messages.length()-1).getString("content");
    ok(!evidence.contains("Synthetic Cafe"));ok(!evidence.contains("Synthetic Category"));ok(!evidence.contains("synthetic-source-id"));ok(!evidence.contains("synthetic private note"));ok(!evidence.contains("Synthetic private address"));ok(evidence.contains("1234"));ok(evidence.contains("sourceCoverage"));ok(evidence.contains("unknown"));
    return grounded("These are imported transaction totals, not a bank balance.","call_summary","/amountsPence/moneyOutPence",new JSONObject(evidence).getJSONArray("evidenceRefs"));
@@ -69,7 +69,7 @@ public final class CompanionAgentChecks {
   List<Finance.Transaction> planRows=Collections.singletonList(new Finance.Transaction("plan-synthetic-id","2027-04-08","Example Food","Groceries","Card payment","GBP",-1234,Map.of()));
   CompanionPlanner.Plan plan=new CompanionPlanner.Plan(Collections.singletonList(new CompanionPlanner.Budget("Groceries","2027-04-01","2027-04-30",10000,true)),Collections.emptyList(),null,"",0,false,Collections.singletonList("Protect essentials"));
   int[] planned={0};CompanionAgent budgeting=new CompanionAgent((request,k)->{
-   if(planned[0]++==0){ok(request.getJSONArray("tools").length()==9);return tools("call_budget","budget_status","{}");}
+   if(planned[0]++==0){ok(request.getJSONArray("tools").length()==10);return tools("call_budget","budget_status","{}");}
    JSONArray messages=request.getJSONArray("messages");JSONObject evidence=new JSONObject(messages.getJSONObject(messages.length()-1).getString("content"));
    ok(!evidence.toString().contains("Groceries"));ok(!evidence.toString().contains("Protect essentials"));ok(evidence.getJSONArray("budgets").getJSONObject(0).getLong("remainingPence")==8766);
    return grounded("The remaining allocation is {{fact:0}}; protect your chosen essentials.","call_budget","/budgets/0/remainingPence",evidence.getJSONArray("budgets").getJSONObject(0).getJSONArray("evidenceRefs"));
@@ -90,6 +90,20 @@ public final class CompanionAgentChecks {
    if(wrongBudget)rejects(()->scoped.answer("key","model","q",twoRows,Map.of(),TODAY,RETRIEVED,new CompanionAgent.Consent(true,false),3,twoBudgets));
    else{CompanionAgent.Answer scopedAnswer=scoped.answer("key","model","q",twoRows,Map.of(),TODAY,RETRIEVED,new CompanionAgent.Consent(true,false),3,twoBudgets);JSONObject fact=new JSONArray(scopedAnswer.verifiedFactsJson).getJSONObject(0);ok(fact.getJSONObject("context").getInt("budgetIndex")==0);ok(fact.getJSONObject("context").getString("from").equals("2027-04-01"));ok(fact.getJSONArray("evidenceRefs").length()==1);}
   }
+
+  int[] forgedFxCalls={0};CompanionAgent forgedFx=new CompanionAgent((request,k)->{if(forgedFxCalls[0]++==0)return tools("call_fx_forged","original_currency_details","{\"ref\":\"0123456789abcdef\"}");return answer("Ungrounded original currency claim");});
+  rejects(()->forgedFx.answer("key","model","q",fixture(),Map.of(),TODAY,RETRIEVED,new CompanionAgent.Consent(true,false),3));ok(forgedFxCalls[0]==2);
+
+  List<Finance.Transaction> foreignRows=List.of(new Finance.Transaction("synthetic-fx-id","2027-04-08","Private foreign shop","Shopping","Card payment","GBP",-1234,Map.of("Local amount","-14.25","Local currency","EUR","Notes and #tags","private excluded note")));
+  int[] fxStage={0};CompanionAgent fxAgent=new CompanionAgent((request,k)->{
+   if(fxStage[0]++==0)return tools("fx_search","search_transactions","{}");
+   JSONArray messages=request.getJSONArray("messages");JSONObject evidence=new JSONObject(messages.getJSONObject(messages.length()-1).getString("content"));
+   if(fxStage[0]==2)return tools("fx_detail","original_currency_details",new JSONObject().put("ref",evidence.getJSONArray("transactions").getJSONObject(0).getString("ref")).toString());
+   ok(!evidence.toString().contains("private excluded note"));ok(!evidence.toString().contains("Private foreign shop"));
+   return grounded("Recorded original amount: {{fact:0}}. This does not establish an exchange fee.","fx_detail","/localAmountDecimal",evidence.getJSONArray("evidenceRefs"));
+  });
+  CompanionAgent.Answer fxAnswer=fxAgent.answer("key","model","Show recorded original amounts",foreignRows,Map.of(),TODAY,RETRIEVED,new CompanionAgent.Consent(true,false),4);
+  ok(fxAnswer.complete);ok(fxAnswer.text.contains("-14.25"));ok(new JSONArray(fxAnswer.verifiedFactsJson).getJSONObject(0).getJSONObject("context").getString("localCurrency").equals("EUR"));ok(fxAnswer.modelRequests==3);
 
   System.out.println("Companion agent: "+checks+" checks passed; fake gateway only, no provider calls or costs");
  }

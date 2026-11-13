@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Currency;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -70,6 +71,10 @@ public final class CompanionTools {
                 object("fromA", requiredDate(), "toA", requiredDate(), "fromB", requiredDate(), "toB", requiredDate())));
         tools.put(definition("recurring_candidates",
                 "Read-only tentative recurring debit patterns from ALL imported history, using the device-local date supplied by the host. Returns at most 20 candidates, always estimates requiring user confirmation, never confirmed bills or subscriptions. Excludes Pot transfers and uses opaque evidence refs. Merchant labels require host consent.", new JSONObject()));
+        tools.put(definition("original_currency_details",
+                "Read-only original-currency detail for ONE previously returned opaque transaction ref. The host must allow only refs returned earlier in this conversation. Returns actual signed GBP account pence and strictly validated imported Local currency/Local amount decimal, with explicit missing/unsupported statuses. Original currency decimals are NOT assumed to use two minor digits. Never infers exchange rates or fees, and future-dated records are not current observed spending. Labels require separate host consent; notes/addresses/receipts/Pot names are never returned.",
+                object("ref", object("type", "string", "minLength", 16, "maxLength", 16, "pattern", "^[0-9a-f]{16}$",
+                        "description", "Opaque 16-character SHA-256 transaction ref already returned by a local tool; never a source transaction ID."))));
         return tools;
     }
 
@@ -100,6 +105,9 @@ public final class CompanionTools {
                 case "recurring_candidates":
                     allowOnly(args, Collections.emptySet());
                     return recurring(all, today, shareMerchantNames);
+                case "original_currency_details":
+                    allowOnly(args, keys("ref"));
+                    return originalCurrency(all, overrides, today, args, shareMerchantNames);
                 default:
                     throw invalid("Unknown read-only companion tool");
             }
@@ -271,6 +279,51 @@ public final class CompanionTools {
                 "rowCount", all.size(), "candidateCount", candidates.size(), "returnedCandidateCount", items.length(),
                 "candidatesTruncated", candidates.size() > 20, "candidates", items,
                 "interpretation", "Observed patterns only. Dates and amounts are estimates requiring confirmation, not verified bills or subscriptions.");
+    }
+
+    private static JSONObject originalCurrency(List<Finance.Transaction> all, Map<String,String> overrides,
+                                               LocalDate today, JSONObject args, boolean labels) {
+        Object input = args.opt("ref");
+        if (!(input instanceof String) || !((String) input).matches("[0-9a-f]{16}")) {
+            throw invalid("A previously returned opaque transaction reference is required");
+        }
+        String opaque = (String) input; Finance.Transaction selected = null;
+        for (Finance.Transaction row : all) if (ref(row.id).equals(opaque)) {
+            if (selected != null) throw invalid("Ambiguous opaque transaction reference");
+            selected = row;
+        }
+        if (selected == null) throw invalid("Opaque transaction reference was not found in imported history");
+        String currencyValue = selected.raw.get("Local currency"), amountValue = selected.raw.get("Local amount");
+        String currency = currencyValue == null ? "" : currencyValue.trim();
+        String currencyStatus = currency.isEmpty() ? "missing" : "unsupported_code";
+        if (currency.matches("[A-Z]{3}")) {
+            try { Currency.getInstance(currency); currencyStatus = "recorded"; }
+            catch (IllegalArgumentException unsupportedCurrency) { /* Never substitute an inferred currency. */ }
+        }
+        String amount = amountValue == null ? "" : amountValue.trim();
+        String amountStatus = amount.isEmpty() ? "missing" : "unsupported_format";
+        String decimal = null;
+        if (amount.matches("-?[0-9]{1,18}(?:\\.[0-9]{1,6})?")) {
+            decimal = new BigDecimal(amount).toPlainString(); amountStatus = "recorded";
+        }
+        boolean future = LocalDate.parse(selected.date).isAfter(today);
+        JSONObject result = object("tool", "original_currency_details", "historyRowCount", all.size(), "rowCount", 1,
+                "ref", opaque, "evidenceRefs", new JSONArray().put(opaque), "evidenceRowCount", 1,
+                "date", selected.date, "currency", "GBP", "accountCurrency", "GBP", "accountAmountPence", selected.amount,
+                "localCurrency", currencyStatus.equals("recorded") ? currency : JSONObject.NULL,
+                "localCurrencyStatus", currencyStatus, "localAmountDecimal", decimal == null ? JSONObject.NULL : decimal,
+                "localAmountStatus", amountStatus, "localAmountUnit", "decimal_original_currency_not_assumed_two_minor_digits",
+                "potMovement", isPot(selected), "recordedDateInFuture", future, "countsAsObservedThroughToday", !future,
+                "exchangeRate", JSONObject.NULL, "feePence", JSONObject.NULL, "exchangeRateInferred", false, "feeInferred", false,
+                "labelsShared", labels,
+                "scope", object("history", "one_imported_source_row", "asOf", today.toString(), "sourceCoverage", "imported_rows_only",
+                        "bankCoverage", "unknown", "priorEvidenceOriginMustBeCheckedByHost", true),
+                "interpretation", "Recorded fields only, not a verified exchange rate, fee, pending state or available balance. Missing/unsupported original fields remain unknown; future-dated rows do not establish spending observed through today.");
+        if (labels) {
+            put(result, "name", label(selected.name)); put(result, "category", label(category(selected, overrides)));
+            put(result, "type", label(selected.type));
+        }
+        return result;
     }
 
     private static final class Totals {
