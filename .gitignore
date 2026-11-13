@@ -1,0 +1,21 @@
+node_modules/
+.env*
+!.env.example
+private/
+imports/
+*.xlsx
+*.csv
+!fixtures/synthetic.csv
+*.log
+.DS_Store
+
+# Native build output and local signing/configuration
+.gradle/
+**/build/
+local.properties
+*.keystore
+*.jks
+*.apk
+*.aab
+
+!android/app/src/main/assets/synthetic.csv
