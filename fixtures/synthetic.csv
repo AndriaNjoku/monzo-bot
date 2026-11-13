@@ -1,0 +1,8 @@
+Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency,Local amount,Local currency,Notes and #tags,Address,Receipt,Description,Category split,Pot name
+syn-001,01/11/2026,09:00:00,Faster payment,Example Employer,,Income,2400.00,GBP,2400.00,GBP,,,,,,
+syn-002,02/11/2026,12:00:00,Card payment,Demo Grocer,,Groceries,-54.28,GBP,-54.28,GBP,#weekly,,,,,
+syn-003,04/11/2026,17:00:00,Card payment,Sample Cafe,,Eating out,-18.50,GBP,-18.50,GBP,,,,,,
+syn-004,06/11/2026,10:00:00,Card payment,Demo Grocer,,Groceries,-72.16,GBP,-72.16,GBP,,,,,,
+syn-005,08/11/2026,10:00:00,Card payment,Demo Grocer,,Groceries,4.25,GBP,4.25,GBP,#refund,,,,,
+syn-006,09/11/2026,08:00:00,Card payment,Example Rail,,Transport,-32.40,GBP,-32.40,GBP,,,,,,
+syn-007,12/11/2026,18:00:00,Card payment,Demo Grocer,,Groceries,-51.20,GBP,-51.20,GBP,,,,,,

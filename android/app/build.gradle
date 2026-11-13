@@ -1,0 +1,19 @@
+plugins { id 'com.android.application' }
+android {
+ namespace 'org.monzobot.app'
+ compileSdk 35
+ buildToolsVersion "35.0.0"
+ defaultConfig { applicationId 'org.monzobot.app'; minSdk 30; targetSdk 35; versionCode 2; versionName '0.2.0-alpha' }
+ compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+ sourceSets { test.java.srcDirs += ["../domain-tests", "../sync-tests"] }
+ testOptions { unitTests.all { systemProperty "fixturePath", rootProject.file("../fixtures/synthetic.csv").absolutePath } }
+ buildTypes { release { minifyEnabled false } }
+}
+dependencies {
+ testImplementation 'junit:junit:4.13.2'
+ testImplementation 'org.json:json:20240303'
+ implementation 'androidx.activity:activity:1.9.3'
+ implementation 'androidx.core:core:1.13.1'
+ implementation 'androidx.work:work-runtime:2.9.1'
+ implementation 'com.google.android.gms:play-services-auth:22.0.0'
+}
