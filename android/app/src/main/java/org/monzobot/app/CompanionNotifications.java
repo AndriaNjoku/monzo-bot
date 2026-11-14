@@ -53,7 +53,7 @@ public final class CompanionNotifications {
    if("connected".equals(state.optString("mode"))&&!state.optBoolean("authorized")){clearPosted(context);return;}
    List<Finance.Transaction> history=SecureStore.transactions(state);if(history.size()>MAX_ROWS)throw new IllegalArgumentException("Notification snapshot exceeds supported row limit");
    Instant now=Instant.now();ZoneId zone=ZoneId.systemDefault();LocalDate today=now.atZone(zone).toLocalDate();
-   String source=hash(state.optString("mode")+"\u0000"+state.optString("spreadsheetId"));
+   String source=sourceToken(state);
    JSONObject ledger=state.optJSONObject(LEDGER);boolean sourceChanged=ledger==null||!source.equals(ledger.optString("source"));
    if(sourceChanged){clearPosted(context);ledger=new JSONObject().put("source",source);}
    boolean initial=sourceChanged||!ledger.has("knownRefs");
@@ -71,7 +71,7 @@ public final class CompanionNotifications {
    permission=permission&&NotificationManagerCompat.from(context).areNotificationsEnabled();
    NotificationChannel channel=manager.getNotificationChannel(CHANNEL);permission=permission&&channel!=null&&channel.getImportance()!=NotificationManager.IMPORTANCE_NONE;
    CompanionDelivery.Outcome outcome=CompanionDelivery.deliver(candidates,ledger,now,zone,true,permission,config.optInt("quietStart",21),config.optInt("quietEnd",8),candidate->{
-    try{manager.notify(candidate.key,ID,notification(context,candidate));return true;}catch(SecurityException denied){return false;}
+    try{manager.notify(candidate.key,ID,notification(context,candidate,source));return true;}catch(SecurityException denied){return false;}
    });
    outcome.ledger.put("source",source).put("pending",pending);
    if(!history.isEmpty()||"recent".equals(CompanionAlertEngine.retrievalStatus(now,state.optString("lastSync"))))outcome.ledger.put("knownRefs",current);
@@ -84,10 +84,11 @@ public final class CompanionNotifications {
   NotificationChannel checks=new NotificationChannel(CHANNEL,"Private companion check-ins",NotificationManager.IMPORTANCE_DEFAULT);checks.setDescription("Budget, payment-review, confirmed-payment and source-freshness check-ins");checks.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);manager.createNotificationChannel(checks);
   NotificationChannel status=new NotificationChannel(STATUS_CHANNEL,"Optional companion status",NotificationManager.IMPORTANCE_LOW);status.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);manager.createNotificationChannel(status);
  }
- private static PendingIntent open(Context context,String key,String kind){Intent intent=new Intent(context,MainActivity.class).setData(android.net.Uri.parse("monzobot://companion/"+key)).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("companionEvent",key).putExtra("companionKind",kind);return PendingIntent.getActivity(context,0,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
- private static Notification notification(Context context,CompanionAlertEngine.Candidate candidate){
+ private static PendingIntent open(Context context,String key,String kind){return open(context,key,kind,"");}
+ private static PendingIntent open(Context context,String key,String kind,String source){Intent intent=new Intent(context,CompanionActivity.class).setData(android.net.Uri.parse("monzobot://companion/"+key)).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("companionEvent",key).putExtra("companionKind",kind).putExtra("companionSource",source);return PendingIntent.getActivity(context,0,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);}
+ private static Notification notification(Context context,CompanionAlertEngine.Candidate candidate,String source){
   Notification publicVersion=new NotificationCompat.Builder(context,CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle("Private check-in available").setContentText("Open the app to review.").build();
-  return new NotificationCompat.Builder(context,CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle(candidate.title).setContentText(candidate.body).setStyle(new NotificationCompat.BigTextStyle().bigText(candidate.body)).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicVersion).setContentIntent(open(context,candidate.key,candidate.kind)).setAutoCancel(true).setOnlyAlertOnce(true).build();
+  return new NotificationCompat.Builder(context,CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle(candidate.title).setContentText(candidate.body).setStyle(new NotificationCompat.BigTextStyle().bigText(candidate.body)).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(publicVersion).setContentIntent(open(context,candidate.key,candidate.kind,source)).setAutoCancel(true).setOnlyAlertOnce(true).build();
  }
  private static void status(Context context,NotificationManager manager){
   Notification n=new NotificationCompat.Builder(context,STATUS_CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle("Private companion is on").setContentText("Export coverage is unverified. Open to review.").setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setContentIntent(open(context,STATUS_TAG,"status")).setOngoing(true).setSilent(true).setOnlyAlertOnce(true).build();
@@ -95,5 +96,6 @@ public final class CompanionNotifications {
  }
  /** Invoke on disconnect, source switch and deletion as well as disabling the feature. */
  public static void clearPosted(Context context){NotificationManager manager=context.getSystemService(NotificationManager.class);for(android.service.notification.StatusBarNotification n:manager.getActiveNotifications())if(n.getId()==ID||n.getId()==STATUS_ID)manager.cancel(n.getTag(),n.getId());}
+ static String sourceToken(JSONObject state)throws Exception{return hash(state.optString("workspaceId")+"\u0000"+state.optString("mode")+"\u0000"+state.optString("spreadsheetId"));}
  private static String hash(String value)throws Exception{byte[] bytes=MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));StringBuilder out=new StringBuilder();for(byte b:bytes)out.append(String.format(java.util.Locale.ROOT,"%02x",b&255));return out.toString();}
 }

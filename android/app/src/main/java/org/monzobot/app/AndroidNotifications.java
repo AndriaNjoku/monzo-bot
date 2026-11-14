@@ -27,7 +27,7 @@ final class AndroidNotifications {
   JSONObject sent=data.optJSONObject("sent");if(sent==null)sent=new JSONObject();
   for(Finance.Alert a:alerts){
    String key=NotificationPolicy.key(start,end,a);if(sent.has(key))continue;
-   Intent intent=new Intent(context,MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
+   Intent intent=new Intent(context,CompanionActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
    PendingIntent pending=PendingIntent.getActivity(context,0,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
    Notification n=new NotificationCompat.Builder(context,CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle("Private budget check-in").setContentText(NotificationPolicy.genericBody("unknown")).setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(new NotificationCompat.Builder(context,CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle("Private check-in available").build()).setContentIntent(pending).setAutoCancel(true).build();
    try{nm.notify(42,n);}catch(SecurityException denied){return;}
