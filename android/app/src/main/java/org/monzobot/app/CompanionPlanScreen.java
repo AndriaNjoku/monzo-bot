@@ -30,8 +30,10 @@ public final class CompanionPlanScreen {
         LinearLayout heading = h.card("Your plan");
         h.paragraph(heading, "Give your money a purpose. Each budget has its own dates, and essential allocations stay clearly marked.");
         h.paragraph(heading, "Budgets are allocations, not your bank balance. Figures below use imported records; missing or pending payments may change the picture.");
+        h.action(heading, "Plan from a message", () -> ConversationPlanScreen.show(h, s), true);
         h.action(heading, "Create a budget", () -> budgetDialog(h, s, -1), true);
         content.addView(heading);
+        ConversationPlanScreen.renderSaved(h, content, s);
 
         List<CompanionPlanner.BudgetStatus> statuses = s.budgetStatuses;
         if (statuses.isEmpty()) {

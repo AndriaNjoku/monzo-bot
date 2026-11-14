@@ -50,7 +50,7 @@ public final class CompanionWorkspace {
  /** Excludes delivery ledgers so a successful background notification does not invalidate a form. */
  static String revision(JSONObject data)throws Exception {
   MessageDigest digest=MessageDigest.getInstance("SHA-256");
-  for(String key:new String[]{"workspaceId","mode","spreadsheetId","authorized","lastSync","transactions","overrides","companionPlan","budgets","start","end","categoryEmojiOverrides"}){
+  for(String key:new String[]{"workspaceId","mode","spreadsheetId","authorized","lastSync","transactions","overrides","companionPlan","conversationBudgets","budgets","start","end","categoryEmojiOverrides"}){
    byte[] value=(key+"\u0000"+canonical(data.opt(key))+"\u0000").getBytes(StandardCharsets.UTF_8);digest.update(value);
   }
   StringBuilder hex=new StringBuilder();for(byte value:digest.digest())hex.append(String.format(Locale.ROOT,"%02x",value&255));return hex.toString();

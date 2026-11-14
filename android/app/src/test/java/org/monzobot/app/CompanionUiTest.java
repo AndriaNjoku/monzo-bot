@@ -19,6 +19,7 @@ import static org.junit.Assert.*;
 public class CompanionUiTest {
  static volatile JSONObject seed;
  public static class TestActivity extends CompanionActivity {
+  @Override protected boolean planVoiceAvailable(){return false;}
   @Override protected CompanionWorkspace createWorkspace(){return new CompanionWorkspace(new CompanionWorkspace.Store(){public JSONObject read()throws Exception{return new JSONObject(seed.toString());}public void save(JSONObject value)throws Exception{seed=new JSONObject(value.toString());}});}
  }
  private ActivityController<TestActivity> controller;
@@ -70,6 +71,41 @@ public class CompanionUiTest {
    try(java.io.FileOutputStream output=new java.io.FileOutputStream(new java.io.File(directory,screen+".png"))){assertTrue(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,output));}bitmap.recycle();
   }
  }
+ @Test public void conversationalPlanRequiresReviewAndSingleConfirmationThenSeparateHandoffs()throws Exception {
+  String original="Next month I want to buy a bicycle for £120";
+  AlertDialog review=openConversation(original);View fields=review.getWindow().getDecorView();
+  assertEquals("120",field(fields,"Amount (£)").getText().toString().replace(".00",""));
+  field(fields,"Name this allocation").setText("Bicycle");field(fields,"Category").setText("Shopping");spinner(fields).setSelection(1);Shadows.shadowOf(Looper.getMainLooper()).idle();
+  assertFalse(review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());assertFalse(seed.has("conversationBudgets"));
+  review.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();await(()->review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());
+  assertTrue(contains(fields,"cannot confirm affordability"));assertTrue(contains(fields,"Future income"));assertFalse(seed.has("conversationBudgets"));
+  review.getButton(AlertDialog.BUTTON_POSITIVE).performClick();review.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+  await(()->seed.optJSONObject("conversationBudgets")!=null);await(()->latestDialogContains("Plan saved"));
+  assertEquals(1,ConversationBudget.records(seed).length());assertEquals(12000,BudgetWorkspace.read(seed).budgets.get(0).limitPence);assertEquals(1007,seed.getJSONArray("transactions").length());
+  assertEquals(original,ConversationBudget.decode(ConversationBudget.records(seed).getJSONObject(0).getJSONObject("proposal")).originalText);assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+  AlertDialog saved=ShadowAlertDialog.getLatestAlertDialog();click(saved.getWindow().getDecorView(),"Review calendar reminder");await(()->latestDialogContains("Review calendar draft"));assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+  AlertDialog calendar=ShadowAlertDialog.getLatestAlertDialog();assertFalse(((CheckBox)findText(calendar.getWindow().getDecorView(),"Include the planning amount in this handoff")).isChecked());calendar.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();
+  click(saved.getWindow().getDecorView(),"Review notes draft");await(()->latestDialogContains("Review note text"));assertNull(Shadows.shadowOf(activity).getNextStartedActivity());assertEquals(1,ConversationBudget.records(seed).length());
+ }
+ @Test public void savedPlansArePreservedButNotReusedUnderAnotherExport()throws Exception {
+  AlertDialog review=openConversation("Next month buy a bicycle for £120");View fields=review.getWindow().getDecorView();field(fields,"Name this allocation").setText("Bicycle");field(fields,"Category").setText("Shopping");spinner(fields).setSelection(1);Shadows.shadowOf(Looper.getMainLooper()).idle();review.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();await(()->review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());review.getButton(AlertDialog.BUTTON_POSITIVE).performClick();await(()->latestDialogContains("Plan saved"));ShadowAlertDialog.getLatestAlertDialog().getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+  String saved=seed.getJSONObject("conversationBudgets").toString();seed.put("workspaceId","synthetic-replaced-source");activity.reload();await(()->contains(root,"belong to a different export"));assertEquals(saved,seed.getJSONObject("conversationBudgets").toString());assertEquals(1,ConversationBudget.records(seed).length());
+ }
+ @Test public void editingAReviewedConversationRequiresAnotherReview()throws Exception {
+  AlertDialog review=openConversation("Next month I might buy a bicycle for £120");View fields=review.getWindow().getDecorView();field(fields,"Name this allocation").setText("Bicycle");field(fields,"Category").setText("Shopping");spinner(fields).setSelection(1);Shadows.shadowOf(Looper.getMainLooper()).idle();
+  review.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();await(()->review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());field(fields,"Amount (£)").setText("150.00");assertFalse(review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());review.getButton(AlertDialog.BUTTON_POSITIVE).performClick();assertFalse(seed.has("conversationBudgets"));
+ }
+ @Test public void unknownConversationValuesStayBlankAndVoiceHasAnHonestBoundary()throws Exception {
+  click(root,"Plan");click(root,"Plan from a message");Shadows.shadowOf(Looper.getMainLooper()).idle();AlertDialog input=ShadowAlertDialog.getLatestAlertDialog();click(input.getWindow().getDecorView(),"Speak a draft");assertTrue(latestDialogContains("On-device voice unavailable"));assertFalse(seed.has("conversationBudgets"));ShadowAlertDialog.getLatestAlertDialog().getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+  field(input.getWindow().getDecorView(),"Your plan, in your own words").setText("I might buy a bicycle sometime");input.getButton(AlertDialog.BUTTON_POSITIVE).performClick();await(()->latestDialogContains("Review your proposed plan"));AlertDialog review=ShadowAlertDialog.getLatestAlertDialog();Shadows.shadowOf(Looper.getMainLooper()).idle();View fields=review.getWindow().getDecorView();assertEquals("",field(fields,"Amount (£)").getText().toString());assertEquals("",field(fields,"First day (included) (yyyy-MM-dd)").getText().toString());assertFalse(review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+ }
+ @Test public void aChangedSourceCannotApplyAnOldConversationReview()throws Exception {
+  AlertDialog review=openConversation("Next month buy a bicycle for £120");View fields=review.getWindow().getDecorView();field(fields,"Name this allocation").setText("Bicycle");field(fields,"Category").setText("Shopping");spinner(fields).setSelection(1);Shadows.shadowOf(Looper.getMainLooper()).idle();review.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();await(()->review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());
+  seed.put("workspaceId","synthetic-other-workspace");review.getButton(AlertDialog.BUTTON_POSITIVE).performClick();await(()->contains(fields,"source or plan changed"));assertFalse(seed.has("conversationBudgets"));assertEquals("Bicycle",field(fields,"Name this allocation").getText().toString());assertFalse(review.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled());
+ }
+ private AlertDialog openConversation(String message)throws Exception{click(root,"Plan");click(root,"Plan from a message");Shadows.shadowOf(Looper.getMainLooper()).idle();AlertDialog input=ShadowAlertDialog.getLatestAlertDialog();field(input.getWindow().getDecorView(),"Your plan, in your own words").setText(message);input.getButton(AlertDialog.BUTTON_POSITIVE).performClick();await(()->latestDialogContains("Review your proposed plan"));Shadows.shadowOf(Looper.getMainLooper()).idle();return ShadowAlertDialog.getLatestAlertDialog();}
+ private static boolean latestDialogContains(String text){AlertDialog dialog=ShadowAlertDialog.getLatestAlertDialog();return dialog!=null&&contains(dialog.getWindow().getDecorView(),text);}
+ private static Spinner spinner(View view){if(view instanceof Spinner)return (Spinner)view;if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++){Spinner found=spinner(group.getChildAt(i));if(found!=null)return found;}}return null;}
  private interface Condition{boolean done()throws Exception;}
  private static void await(Condition condition)throws Exception{long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(10);while(System.nanoTime()<deadline){Shadows.shadowOf(Looper.getMainLooper()).idle();if(condition.done())return;Thread.sleep(10);}throw new AssertionError("Android interaction did not settle");}
  private static boolean contains(View view,String text){if(view instanceof TextView&&((TextView)view).getText().toString().contains(text))return true;if(view instanceof ViewGroup){ViewGroup group=(ViewGroup)view;for(int i=0;i<group.getChildCount();i++)if(contains(group.getChildAt(i),text))return true;}return false;}

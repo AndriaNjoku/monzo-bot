@@ -25,6 +25,10 @@ Financial data is stored locally using Android Keystore AES-GCM and atomic write
 
 Only synthetic test data is committed. Never place financial exports, credentials, signing keys or OAuth user identifiers in this repository. App name/branding needs review before a public product launch.
 
+## Conversational planning
+
+Plan from a typed message or an optional on-device transcript, review exact fields and conditional allocation/cash figures, then explicitly confirm a local budget change. Calendar and notes handoffs are separate reviewed actions. Missing amounts, uncertain liabilities and unverified bank coverage never become confident affordability claims. See [the first-slice behavior and limits](docs/CONVERSATIONAL_PLANNING.md).
+
 ## Original local web prototype
 
 The root web prototype remains available for comparison; it is separate from the native Android app and keeps imports only in tab memory.
