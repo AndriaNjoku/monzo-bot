@@ -43,3 +43,5 @@ Requires Node 22+ for tests and Python 3 for the loopback static server. Open ht
 ## Development
 
 MIT licensed. Android dependencies and Gradle are pinned; build and validation instructions are in [android/README.md](android/README.md). Portable synthetic domain and Sheets-response tests live in `android/domain-tests` and `android/sync-tests`. Hosted CI and automatic deployments are intentionally absent.
+
+Optional conversational AI planning can prepare an editable tentative proposal from an approved message using the selected BYOK provider. Amount/date evidence is validated locally, then affordability is reviewed and the user explicitly confirms the local allocation. The offline rule parser remains available. See [planning flow and privacy boundary](docs/CONVERSATIONAL_PLANNING.md).
