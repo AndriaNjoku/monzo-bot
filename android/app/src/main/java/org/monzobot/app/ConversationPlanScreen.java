@@ -30,7 +30,7 @@ public final class ConversationPlanScreen {
 
     public static void show(CompanionActivity h, CompanionWorkspace.Snapshot source) {
         LinearLayout form = form(h);
-        h.paragraph(form, "Tell your companion what you want to set aside. This prepares a draft; nothing is saved, paid or sent to another app yet.");
+        h.paragraph(form, "Describe what you want to set aside. Local rules prepare editable fields here; this is not a generative AI request. Nothing is saved, paid or sent to another app yet.");
         EditText original = field(h, form, "Your plan, in your own words", "", TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         original.setSingleLine(false); original.setMinLines(4); original.setMaxLines(9);
         original.setGravity(Gravity.TOP);

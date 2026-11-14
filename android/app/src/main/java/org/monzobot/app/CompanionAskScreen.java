@@ -9,6 +9,9 @@ import android.text.TextWatcher;
 import android.text.method.PasswordTransformationMethod;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
+import android.widget.Spinner;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -34,9 +37,12 @@ public final class CompanionAskScreen {
     private CompanionAskScreen() {}
 
     public static void render(CompanionActivity h, LinearLayout content, CompanionWorkspace.Snapshot snapshot) {
+        final AiProviders.Provider selectedProvider = h.activeAiProvider();
+        final AiProviders.Provider[] implemented = {AiProviders.Provider.OPENAI, AiProviders.Provider.ANTHROPIC};
         LinearLayout intro = h.card("Ask your companion");
         h.paragraph(intro, "Ask about all imported history, a recorded payment, or your own budget priorities. The local tools are read-only: they cannot send payments, change an account or rewrite your budget.");
-        h.paragraph(intro, "AI is optional. Each question can use up to 3 model requests, billed to your OpenAI API account. It runs only when you press Ask; there are no automatic background AI calls or paid retries.");
+        h.paragraph(intro, "Ask uses optional provider-generated reasoning. Each question can use up to 3 model requests, billed to your selected provider account. Requests start only when you press Ask, with no automatic background AI calls or paid retries.");
+        h.paragraph(intro, "Plan → Plan from a message is a separate local planning flow with editable fields and explicit confirmation. On-device voice drafts text; it does not start an AI request or save a plan.");
         if (snapshot.history.isEmpty()) h.paragraph(intro, "No transactions are imported yet. Answers can use any plan you provided and must make missing evidence clear.");
         content.addView(intro);
 
@@ -57,65 +63,102 @@ public final class CompanionAskScreen {
         h.action(form, "Explain my recorded money flow", () -> setQuestion(h, question,
                 "Summarize external money in and out across all my imported history. Keep Pot movements separate, credits unclassified and source coverage uncertainty explicit."), false);
 
-        LinearLayout provider = h.card("Optional OpenAI connection");
-        h.paragraph(provider, "Provider: OpenAI. The app sends requests only to api.openai.com. Your typed question is sent as written, together with selected facts returned by local read-only tools—not the entire spreadsheet.");
+        LinearLayout provider = h.card("Optional AI connection");
+        provider.addView(h.label("Choose your provider", 14, h.MUTED));
+        Spinner selector = new Spinner(h);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(h, android.R.layout.simple_spinner_item,
+                new String[]{implemented[0].displayName, implemented[1].displayName});
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        selector.setAdapter(adapter); selector.setContentDescription("AI provider for this question");
+        selector.setSelection(selectedProvider == implemented[1] ? 1 : 0, false);
+        selector.setSaveEnabled(false); selector.setSaveFromParentEnabled(false);
+        provider.addView(selector, new LinearLayout.LayoutParams(-1, h.dp(56)));
+        h.paragraph(provider, "Selected provider: " + selectedProvider.displayName + ". Requests go only to " + selectedProvider.host
+                + ". Your typed question is sent as written, together with selected facts from local read-only tools. The whole spreadsheet is not uploaded.");
+        h.paragraph(provider, "OpenAI and Anthropic are the implemented provider choices. Changing provider stops the current question, clears this key field and requires new consent. Saved keys remain separate for each provider.");
         String recalled = h.recalledKey(); if (recalled == null) recalled = "";
-        EditText key = h.field("OpenAI API key", recalled, InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        EditText key = h.field(selectedProvider.displayName + " API key", recalled,
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         protectKey(key); provider.addView(key);
-        String storedModel = snapshot.data.optString("companionModel", "gpt-4.1-mini");
-        if (storedModel.trim().isEmpty()) storedModel = "gpt-4.1-mini";
-        EditText model = h.field("Model ID — editable for your account", storedModel, InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        model.setSingleLine(true); model.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)}); provider.addView(model);
-        h.paragraph(provider, "The model ID is an editable setting, not a price or availability recommendation. Your provider account determines availability and charges.");
+        JSONObject perProviderModels = snapshot.data.optJSONObject("companionModels");
+        String storedModel = perProviderModels == null ? "" : perProviderModels.optString(selectedProvider.id, "");
+        if (storedModel.trim().isEmpty() && selectedProvider == AiProviders.Provider.OPENAI)
+            storedModel = snapshot.data.optString("companionModel", "");
+        if (storedModel.trim().isEmpty()) storedModel = selectedProvider.defaultModel;
+        EditText model = h.field(selectedProvider.displayName + " model ID — editable", storedModel,
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        model.setSingleLine(true); model.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+        model.setSaveEnabled(false); model.setSaveFromParentEnabled(false); provider.addView(model);
+        h.paragraph(provider, selectedProvider.modelNote);
+        if (h.providerKeyLoading) h.paragraph(provider, "Loading or removing only this provider’s saved key…");
+        h.paragraph(provider, "The model ID is editable. Your selected provider account determines model availability and charges; the model must support the required local tool calls and structured answer format.");
 
-        CheckBox remember = check(h, "Remember this key in encrypted storage on this device");
+        CheckBox remember = check(h, "Remember this " + selectedProvider.displayName + " key in encrypted storage on this device");
         remember.setChecked(!recalled.isEmpty()); remember.setSaveEnabled(false); provider.addView(remember);
-        h.paragraph(provider, "Leave this unchecked to avoid saving the key. Unchecking it on your next request also removes a previously saved key.");
-        h.action(provider, "Forget saved key", () -> { key.setText(""); remember.setChecked(false); h.forgetKey(); }, false);
-
-        CheckBox labels = check(h, "Also share merchant, category, type and user-plan labels");
+        h.paragraph(provider, "Leave this unchecked to avoid saving this provider's key. Unchecking it on your next request removes that provider's saved key.");
+        CheckBox labels = check(h, "Also share merchant, category, type and user-plan labels with " + selectedProvider.displayName);
         labels.setChecked(false); labels.setSaveEnabled(false); provider.addView(labels);
-        h.paragraph(provider, "Labels can include personal names and custom budget priorities. With this off, the agent can use numeric/date facts and redacted browsing, but cannot search or guess private labels. Raw notes, addresses, receipts and Pot names are excluded from tool results either way.");
-        CheckBox consent = check(h, "Allow this question and selected financial facts to be processed by OpenAI");
+        h.paragraph(provider, "Labels can include personal names and custom budget priorities. With this off, the agent uses numeric/date facts and redacted browsing, and cannot search private labels. Raw notes, addresses, receipts and Pot names are excluded from tool results either way.");
+        CheckBox consent = check(h, "Allow this question and selected financial facts to be processed by " + selectedProvider.displayName);
         consent.setChecked(false); consent.setSaveEnabled(false); provider.addView(consent);
-        h.paragraph(provider, "Permission is required for each new question. Anything you type—including names or other private details—is still sent in the question itself.");
+        h.paragraph(provider, "Consent applies to this provider, model, question and sharing choice. Editing them clears consent. Anything you type, including private names or details, is still sent in the question itself.");
 
-        Button ask = new Button(h); ask.setText(h.askBusy ? "Working…" : "Ask with local evidence");
+        Button ask = new Button(h); ask.setText(h.askBusy ? "Working…" : "Ask " + selectedProvider.displayName + " with local evidence");
         ask.setAllCaps(false); ask.setTextColor(h.INK); ask.setBackgroundTintList(android.content.res.ColorStateList.valueOf(h.CORAL));
         ask.setPadding(h.dp(14), h.dp(12), h.dp(14), h.dp(12));
         provider.addView(ask, new LinearLayout.LayoutParams(-1, -2));
         Runnable updateEnabled = () -> {
-            boolean ready = !h.askBusy && consent.isChecked() && !key.getText().toString().trim().isEmpty()
-                    && !question.getText().toString().trim().isEmpty() && !model.getText().toString().trim().isEmpty();
+            boolean ready = !h.askBusy && h.activeAiProvider() == selectedProvider && consent.isChecked()
+                    && !key.getText().toString().trim().isEmpty() && !question.getText().toString().trim().isEmpty()
+                    && !model.getText().toString().trim().isEmpty();
             ask.setEnabled(ready); ask.setAlpha(ready ? 1f : .45f);
         };
-        TextWatcher update = new TextWatcher() {
+        Runnable resetSharingConsent = () -> { labels.setChecked(false); consent.setChecked(false); updateEnabled.run(); };
+        TextWatcher reset = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence text, int start, int countBefore, int after) {}
-            @Override public void onTextChanged(CharSequence text, int start, int before, int countNow) { updateEnabled.run(); }
+            @Override public void onTextChanged(CharSequence text, int start, int before, int countNow) { resetSharingConsent.run(); }
             @Override public void afterTextChanged(Editable value) {}
         };
-        key.addTextChangedListener(update); model.addTextChangedListener(update);
+        key.addTextChangedListener(reset); model.addTextChangedListener(reset);
         question.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence text, int start, int countBefore, int after) {}
             @Override public void onTextChanged(CharSequence text, int start, int before, int countNow) {
-                h.askQuestion = text.toString(); count.setText(text.length() + " / 2000 characters"); updateEnabled.run();
+                h.askQuestion = text.toString(); count.setText(text.length() + " / 2000 characters"); resetSharingConsent.run();
             }
             @Override public void afterTextChanged(Editable value) {}
         });
-        consent.setOnCheckedChangeListener((button, selected) -> updateEnabled.run());
+        labels.setOnCheckedChangeListener((button, value) -> { consent.setChecked(false); updateEnabled.run(); });
+        remember.setOnCheckedChangeListener((button, value) -> { consent.setChecked(false); updateEnabled.run(); });
+        consent.setOnCheckedChangeListener((button, value) -> updateEnabled.run());
+        h.action(provider, "Forget saved " + selectedProvider.displayName + " key", () -> {
+            key.setText(""); remember.setChecked(false); resetSharingConsent.run();
+            if (h.activeAiProvider() == selectedProvider) h.forgetKey();
+        }, false);
+        selector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View selected, int position, long id) {
+                if (selected instanceof TextView) ((TextView) selected).setTextColor(h.INK);
+                if (position < 0 || position >= implemented.length) return;
+                AiProviders.Provider chosen = implemented[position];
+                if (chosen != selectedProvider && h.activeAiProvider() == selectedProvider) {
+                    key.setText(""); remember.setChecked(false); resetSharingConsent.run();
+                    h.selectAiProvider(chosen);
+                }
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { resetSharingConsent.run(); }
+        });
         ask.setOnClickListener(view -> {
-            if (h.askBusy || !consent.isChecked()) return;
+            if (h.askBusy || !consent.isChecked() || h.activeAiProvider() != selectedProvider) return;
             String apiKey = key.getText().toString().trim(), modelId = model.getText().toString().trim(), typedQuestion = question.getText().toString().trim();
             if (apiKey.isEmpty() || typedQuestion.isEmpty()) { h.toast("Enter a key and a question first."); return; }
             if (apiKey.indexOf('\n') >= 0 || apiKey.indexOf('\r') >= 0) { h.toast("The key contains an unexpected line break."); return; }
-            if (!modelId.matches("[A-Za-z0-9._:-]{1,100}")) { h.toast("Enter a valid model ID for your account."); return; }
+            if (!modelId.matches("[A-Za-z0-9._:-]{1,100}")) { h.toast("Enter a valid model ID for your selected provider account."); return; }
             ask.setEnabled(false); h.askQuestion = typedQuestion;
-            // All network work, secure persistence and revision checks belong to the host.
-            h.ask(snapshot, apiKey, modelId, typedQuestion, labels.isChecked(), remember.isChecked());
+            h.ask(snapshot, selectedProvider, apiKey, modelId, typedQuestion, labels.isChecked(), remember.isChecked());
         });
-        question.setEnabled(!h.askBusy); key.setEnabled(!h.askBusy); model.setEnabled(!h.askBusy);
+        question.setEnabled(!h.askBusy); key.setEnabled(!h.askBusy && !h.providerKeyLoading); model.setEnabled(!h.askBusy && !h.providerKeyLoading);
         consent.setEnabled(!h.askBusy); labels.setEnabled(!h.askBusy); remember.setEnabled(!h.askBusy);
-        updateEnabled.run();
+        // Provider choice remains available: the host cancels the old provider's question on change.
+        selector.setEnabled(true); updateEnabled.run();
         if (h.askBusy) h.action(provider, "Stop this question", () -> { h.cancelQuestion(); h.showAsk(h.askQuestion); }, false);
         content.addView(form); content.addView(provider);
 
@@ -145,6 +188,11 @@ public final class CompanionAskScreen {
 
     private static void renderAnswer(CompanionActivity h, LinearLayout content, CompanionAgent.Answer answer) {
         LinearLayout interpretation = h.card(answer.complete ? "AI interpretation — review it" : "Request stopped before a final answer");
+        String acceptedProvider = h.lastAnswerProvider == null ? "" : h.lastAnswerProvider;
+        String acceptedModel = h.lastAnswerModel == null ? "" : h.lastAnswerModel;
+        h.paragraph(interpretation, acceptedProvider.isEmpty() || acceptedModel.isEmpty()
+                ? "Provider/model metadata was not recorded for this answer."
+                : "Answered by " + clip(acceptedProvider, 80) + " · " + clip(acceptedModel, 100));
         h.paragraph(interpretation, clip(answer.text, 16000));
         h.paragraph(interpretation, "Interpretation and suggestions are AI reasoning, not verified conclusions. The source values below were checked against local tool results; the app has not verified a live bank balance or export coverage.");
         h.paragraph(interpretation, answer.modelRequests + " model requests · " + answer.toolCalls + " local tool calls. Snapshot retrieved: " + retrieved(answer.sourceRetrievedAt));

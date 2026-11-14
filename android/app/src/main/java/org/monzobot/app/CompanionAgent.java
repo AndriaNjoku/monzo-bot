@@ -2,11 +2,7 @@ package org.monzobot.app;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -17,14 +13,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import javax.net.ssl.HttpsURLConnection;
 
 /** Optional, bounded read-only agent. Caller must run off-thread and obtain explicit sharing consent.
  * No keys, conversations or financial data are persisted by this class. */
 public final class CompanionAgent {
  public static final class Consent {
   public final boolean providerProcessing, labels;
-  public Consent(boolean providerProcessing,boolean labels){this.providerProcessing=providerProcessing;this.labels=labels;}
+  public final AiProviders.Provider provider;
+  public Consent(boolean providerProcessing,boolean labels){this(AiProviders.Provider.OPENAI,providerProcessing,labels);}
+  public Consent(AiProviders.Provider provider,boolean providerProcessing,boolean labels){this.provider=Objects.requireNonNull(provider,"provider");this.providerProcessing=providerProcessing;this.labels=labels;}
  }
  public static final class Answer {
   public final String text,sourceRetrievedAt,verifiedFactsJson;
@@ -42,8 +39,12 @@ public final class CompanionAgent {
  /** Injection point for synthetic tests and future explicitly configured provider adapters. */
  public interface ModelGateway {JSONObject complete(JSONObject request,String key)throws Exception;}
  private final ModelGateway gateway;
- public CompanionAgent(){this(new OpenAiGateway());}
- public CompanionAgent(ModelGateway gateway){this.gateway=Objects.requireNonNull(gateway);}
+ private final AiProviders.Provider provider;
+ public CompanionAgent(){this(AiProviders.Provider.OPENAI);}
+ public CompanionAgent(AiProviders.Provider provider){this(provider,AiProviders.gateway(provider));}
+ public CompanionAgent(ModelGateway gateway){this(AiProviders.Provider.OPENAI,gateway);}
+ public CompanionAgent(AiProviders.Provider provider,ModelGateway gateway){this.provider=Objects.requireNonNull(provider,"provider");this.gateway=Objects.requireNonNull(gateway);}
+
 
  public Answer answer(String key,String model,String question,List<Finance.Transaction> history,
                       Map<String,String> corrections,LocalDate today,String sourceRetrievedAt,
@@ -54,6 +55,7 @@ public final class CompanionAgent {
                       Map<String,String> corrections,LocalDate today,String sourceRetrievedAt,
                       Consent consent,int maxModelCalls,CompanionPlanner.Plan plan)throws Exception {
   Objects.requireNonNull(consent,"consent");
+  if(consent.provider!=provider)throw new IllegalArgumentException("Consent must name the selected provider before sending a question.");
   if(!consent.providerProcessing)throw new IllegalArgumentException("Enable provider processing before sending a question.");
   if(key==null||key.trim().isEmpty()||key.indexOf('\n')>=0||key.indexOf('\r')>=0)throw new IllegalArgumentException("A valid provider key is required.");
   if(model==null||!model.matches("[A-Za-z0-9._:-]{1,100}"))throw new IllegalArgumentException("A valid model ID is required.");
@@ -188,16 +190,5 @@ public final class CompanionAgent {
  private static void collectRefs(Object value,Set<String> refs)throws Exception{
   if(value instanceof JSONObject){JSONObject object=(JSONObject)value;java.util.Iterator<String> keys=object.keys();while(keys.hasNext()){String key=keys.next();Object item=object.get(key);if((key.equals("ref")||key.equals("evidenceRef"))&&item instanceof String&&((String)item).matches("[A-Za-z0-9_-]{8,80}"))refs.add((String)item);else if(key.equals("evidenceRefs")&&item instanceof JSONArray){JSONArray a=(JSONArray)item;for(int i=0;i<a.length();i++)if(a.opt(i) instanceof String)refs.add(a.getString(i));}else collectRefs(item,refs);}}
   else if(value instanceof JSONArray){JSONArray array=(JSONArray)value;for(int i=0;i<array.length();i++)collectRefs(array.get(i),refs);}
- }
- private static final class OpenAiGateway implements ModelGateway {
-  @Override public JSONObject complete(JSONObject request,String key)throws Exception{
-   byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);if(body.length>256000)throw new IOException("Provider context exceeds the request limit.");
-   HttpsURLConnection c=(HttpsURLConnection)new URL("https://api.openai.com/v1/chat/completions").openConnection();
-   c.setInstanceFollowRedirects(false);c.setConnectTimeout(15000);c.setReadTimeout(30000);c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Authorization","Bearer "+key);c.setRequestProperty("Content-Type","application/json");
-   try{try(OutputStream out=c.getOutputStream()){out.write(body);}int code=c.getResponseCode();if(code!=200)throw new IOException("Provider request failed (HTTP "+code+"). No automatic paid retry was made.");
-    ByteArrayOutputStream out=new ByteArrayOutputStream();try(InputStream in=c.getInputStream()){byte[] block=new byte[4096];int n;while((n=in.read(block))!=-1){if(out.size()+n>128000)throw new IOException("Provider response exceeds the request limit.");out.write(block,0,n);}}
-    return new JSONObject(new String(out.toByteArray(),StandardCharsets.UTF_8));
-   }finally{c.disconnect();}
-  }
  }
 }

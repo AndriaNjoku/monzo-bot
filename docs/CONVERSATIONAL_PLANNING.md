@@ -38,3 +38,7 @@ Calendar opens an editor for a user-reviewed all-day tentative, free planning re
 Synthetic domain checks cover parsing, integer amounts, dates, refunds/credits, Pot movements, idempotency, provision overlap and incomplete affordability inputs. JVM Android UI tests cover review-before-save, edit invalidation, double-submit protection, stale sources, honest unavailable-voice behavior and separate calendar/notes previews. They do not capture real audio, access financial accounts or launch a real external service.
 
 This feature builds on PR #1's cloud source. The unpublished Windows 0.2.2 authentication/discovery patch is not overwritten. No signing identity, installed phone data, deployment, merge or paid hosted CI is changed by this work. Preserve and review that Windows patch before integrating it with the source branch.
+
+## Optional generative assistance remains separate
+
+Ask now offers implemented OpenAI/Anthropic BYOK adapters with provider-specific model/key selection and named processing consent. This local Plan-from-message parser is still deterministic, not a generative assistant. Model suggestions never mutate plans: any amount/date/category used from them remains untrusted input requiring local validation, a fresh impact review and explicit confirmation. Voice input remains on-device recognition and does not use the selected financial AI provider. See [BYOK providers](BYOK_PROVIDERS.md).
