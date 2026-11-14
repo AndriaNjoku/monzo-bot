@@ -27,7 +27,7 @@ public final class SyncWorker extends Worker {
    synchronized(SecureStore.LOCK){JSONObject current=store.load();if(!id.equals(current.optString("spreadsheetId"))||!current.optBoolean("authorized"))return Result.success();
     List<Finance.Transaction> transactions=Finance.fromRows(result.rows,SecureStore.transactions(current));
     current.put("transactions",SecureStore.encode(transactions)).put("lastSync",result.fetchedAt).put("sourceName",result.title).put("sourceAsOf","").put("status","Retrieved selected spreadsheet. Export coverage is unverified.");
-    current.remove("aiExplanation");AndroidNotifications.check(getApplicationContext(),current);store.save(current);
+    current.remove("aiExplanation");AndroidNotifications.check(getApplicationContext(),current);store.save(current);CompanionMonitorWorker.checkSoon(getApplicationContext());
    }
    return Result.success();
   }catch(Exception e){try{if(!selected.isEmpty())status(store,selected,"Automatic sync could not complete. Your previous data is preserved; open the app to review.");}catch(Exception ignored){}return getRunAttemptCount()<2?Result.retry():Result.failure();}
