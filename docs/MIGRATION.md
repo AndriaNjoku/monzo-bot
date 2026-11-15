@@ -1,0 +1,11 @@
+# React Native migration
+
+This replaces the former Java Android UI and business layer with React Native/TypeScript. Kotlin is limited to Android integrations. Original appId `org.monzobot.app` remains; versionCode400 is higher than the previous public build. Original financial/provider AES-GCM filenames, aliases, IV+ciphertext layout, Anthropic AAD and legacy proposal/source SHA-256 formats are preserved. The private financial schema retains transaction raw evidence, overrides, companionPlan and conversationBudgets. A same-source Google refresh retains the legacy `connected` mode/source token. Source switching preserves reviewed plans but withholds applying plans bound to another source.
+
+Default debug signing references only an already-existing user debug keystore from the original build machine; otherwise the build stays unsigned. Explicit original-keystore properties can be provided privately. No template/replacement signing key is committed, copied or generated. Do not uninstall/clear app data to get around signature mismatch.
+
+Legacy worker/widget class names have Kotlin compatibility shims so queued Android jobs do not reference removed Java classes. They are cancelled/replaced by the new private check-in scheduling. No Java production source remains in the application.
+
+Preserve any uncommitted local changes before pulling this replacement. Live Google Cloud/signing configuration must be verified on the original build machine; a passing cloud build does not establish successful device authorization.
+
+Test boundaries: pureTypeScript/synthetic fake-provider tests and portable Android JUnit codec/transport checks establish source-level behaviour. They do not establish real Keystore hardware migration, Google consent/account behaviour, Android notification delivery, on-device voice, iOS adapters or successful installation on the Pixel. Validate an update with the original signing certificate and retain a private backup before any real-device acceptance.
