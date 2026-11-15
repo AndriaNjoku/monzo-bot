@@ -6,6 +6,6 @@ Default debug signing references only an already-existing user debug keystore fr
 
 Legacy worker/widget class names have Kotlin compatibility shims so queued Android jobs do not reference removed Java classes. They are cancelled/replaced by the new private check-in scheduling. No Java production source remains in the application.
 
-The old local source checkout was preserved during development in a separate directory. The user's unpublished Windows0.2.2 authentication/discovery patch was not accessible from this environment and remains untouched/unreviewed. The new TypeScript discovery and Kotlin authorization are independently implemented; they do not establish that the original Windows Google Cloud/signing configuration works. Preserve that patch before pulling a replacement tree into the same Windows checkout.
+Preserve any uncommitted local changes before pulling this replacement. Live Google Cloud/signing configuration must be verified on the original build machine; a passing cloud build does not establish successful device authorization.
 
 Test boundaries: pureTypeScript/synthetic fake-provider tests and portable Android JUnit codec/transport checks establish source-level behaviour. They do not establish real Keystore hardware migration, Google consent/account behaviour, Android notification delivery, on-device voice, iOS adapters or successful installation on the Pixel. Validate an update with the original signing certificate and retain a private backup before any real-device acceptance.
