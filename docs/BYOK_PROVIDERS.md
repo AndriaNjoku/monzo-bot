@@ -3,7 +3,7 @@
 ## Three separate features
 
 - **Ask** uses a selected generative provider through bounded read-only local tools. Model output is untrusted interpretation and suggestions. No model tool can apply a budget, make a payment or write a source/calendar/note.
-- **Plan → Plan from a message** uses deterministic local extraction of explicit amounts and supported dates. It is not a generative conversational model. Missing/ambiguous fields require editing, a fresh deterministic impact review and explicit confirmation.
+- **Plan → Plan from a message** defaults to offline rule parsing. A separate **Use AI to prepare draft** action sends only the approved planning message and reference date to the selected provider after named consent. Its structured result must pass local amount/date validation and editable review before the deterministic impact review and explicit confirmation. See [conversational planning](CONVERSATIONAL_PLANNING.md).
 - **Speak a draft** uses supported Android on-device recognition only. It fills editable text and does not invoke a financial AI provider. Unsupported devices get the typing fallback.
 
 Generated suggestions are never imported automatically as allocations. If used to prepare a plan, their dates, amounts and category remain untrusted inputs to the same local validation and explicit review flow. Financial arithmetic, cutoff/freshness warnings and duplicate-submit protection are independent of provider/model choice.
@@ -30,9 +30,11 @@ Ask requires processing consent naming the selected provider and disclosing that
 
 Changing provider clears the previous key field, answer and consent, cancels later rounds of the previous request, and loads only that provider's explicitly remembered key. Model, key, question or sharing edits revoke the processing consent. An already in-flight request may complete at the provider; it cannot be unsent. Late answers cannot attach to the new provider's screen.
 
-Each question has at most three model requests and eight local tool calls, with bounded output/context, HTTP timeouts and no automatic retries or background provider calls. Requests are billed to the selected API account under its model pricing. A request bound is not a monetary spending cap or a promise that an existing chat subscription includes API usage.
+Each Ask question has at most three model requests and eight local tool calls, with bounded output/context, HTTP timeouts and no automatic retries or background provider calls. Requests are billed to the selected API account under its model pricing. A request bound is not a monetary spending cap or a promise that an existing chat subscription includes API usage.
 
-OpenAI receives the existing `store:false` flag. Anthropic has no equivalent request flag in this adapter; none is invented. The app does not log or persist conversations, but provider-side processing/retention follows the selected provider's terms and account controls. No zero-retention promise is made.
+AI draft preparation uses one model request, no local financial tools and no automatic retries. It shares no imported transaction or budget data. Consent is separate from Ask, tied to the current provider/key/model/message, and starts off. The local parser remains available without a provider key.
+
+OpenAI receives the existing `store:false` flag. Anthropic has no equivalent request flag in this adapter; none is invented. Ask does not retain a conversation log. AI planning drafts remain in memory until confirmed; an explicitly confirmed local plan retains its original wording in the encrypted financial workspace. Provider-side processing/retention follows the selected provider's terms and account controls. No zero-retention promise is made.
 
 ## Credentials
 

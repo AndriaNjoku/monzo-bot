@@ -4,7 +4,7 @@ In **Plan → Plan from a message**, type a tentative purchase plan such as “N
 
 ## What the draft can establish
 
-The deterministic parser preserves the original words. It recognizes one explicit numeric GBP amount and supported date scopes: this month, next month, one ISO date, or an ordered pair of ISO dates. Missing, approximate, mixed-currency, multiple, debt/credit-related or ambiguous amounts remain unresolved. Unsupported dates stay blank. Names, categories and allocation mode require the user's choice. No AI provider or external transcription service is called to parse a message.
+The deterministic parser preserves the original words. It recognizes one explicit numeric GBP amount and supported date scopes: this month, next month, one ISO date, or an ordered pair of ISO dates. Missing, approximate, mixed-currency, multiple, debt/credit-related or ambiguous amounts remain unresolved. Unsupported dates stay blank. Names, categories and allocation mode require the user's choice. The default **Review draft** path calls no AI provider or external transcription service. The separate **Use AI to prepare draft** path requires explicit provider consent, as described below.
 
 The reviewed proposal remains tentative. Confirming it authorizes a local allocation change, not a purchase, bank payment, borrowing, creditor contact or a claim that a transaction happened. Original imported transactions and stable IDs are unchanged; credits remain separate and internal Pot movements do not inflate spending.
 
@@ -39,6 +39,12 @@ Synthetic domain checks cover parsing, integer amounts, dates, refunds/credits, 
 
 This feature builds on PR #1's cloud source. The unpublished Windows 0.2.2 authentication/discovery patch is not overwritten. No signing identity, installed phone data, deployment, merge or paid hosted CI is changed by this work. Preserve and review that Windows patch before integrating it with the source branch.
 
-## Optional generative assistance remains separate
+## Optional AI preparation
 
-Ask now offers implemented OpenAI/Anthropic BYOK adapters with provider-specific model/key selection and named processing consent. This local Plan-from-message parser is still deterministic, not a generative assistant. Model suggestions never mutate plans: any amount/date/category used from them remains untrusted input requiring local validation, a fresh impact review and explicit confirmation. Voice input remains on-device recognition and does not use the selected financial AI provider. See [BYOK providers](BYOK_PROVIDERS.md).
+**Use AI to prepare draft** is a separate, explicitly approved request to the provider selected in Ask: OpenAI or Anthropic. Its approval form names the provider and endpoint, shows the editable planning message and reference date, and requires fresh processing consent. Only that message, the reference date and application instructions are sent. Imported transactions, balances, budgets, notes and source metadata are not included. Anything the user types in the message is sent verbatim; review personal details before consenting. API charges apply to the selected account. One bounded request is made, without automatic retries or background AI.
+
+The generative model returns a structured tentative draft. Its amount and dates are untrusted: the app compares them with the deterministic parser's supported evidence from the original message. An invented or conflicting amount/date is rejected. Missing, ambiguous, approximate or liability-related details stay unresolved. Supported scopes remain this month, next month and explicit ISO dates; AI does not broaden date or money interpretation silently. Names and categories must be exact excerpts from the message or remain empty; they are editable suggestions, not verified financial classifications. Original tentative wording is preserved.
+
+An accepted draft opens the existing editable review. It creates no allocation until the user completes the required fields, chooses the allocation mode, runs the deterministic impact review and explicitly confirms those exact fields. Freshness, incomplete-coverage warnings, source/revision checks, integer-pence calculations and duplicate-submit protection remain independent of the model. Changing provider, leaving the activity or closing the approval dialog cancels local acceptance; an already transmitted request cannot be unsent. Errors leave the offline option available and do not cause a fallback paid call.
+
+Ask's transaction reasoning, this message-only AI preparation, offline rule parsing and on-device voice are distinct features. Voice still fills editable text locally; sending that transcript to a financial AI requires the separate AI approval. See [BYOK providers](BYOK_PROVIDERS.md).

@@ -1,6 +1,7 @@
 package org.monzobot.app;
 import org.junit.Test;
 public final class CompanionRegressionTest {
+ @Test public void generativePlanningProposalSafety() throws Exception {ConversationAiPlannerChecks.main(new String[0]);}
  @Test public void providerProtocolAdapters() throws Exception {AiProvidersChecks.main(new String[0]);}
  @Test public void providerCredentialIsolation() throws Exception {ProviderCredentialChecks.main(new String[0]);}
  @Test public void providerBoundAgentSafety() throws Exception {ProviderAgentChecks.main(new String[0]);}
