@@ -30,7 +30,7 @@ public final class ConversationPlanScreen {
 
     public static void show(CompanionActivity h, CompanionWorkspace.Snapshot source) {
         LinearLayout form = form(h);
-        h.paragraph(form, "Tell your companion what you want to set aside. This prepares a draft; nothing is saved, paid or sent to another app yet.");
+        h.paragraph(form, "Describe what you want to set aside. Review draft uses offline local rules. Optional AI can prepare a draft only after separate provider consent. Nothing is saved or paid until you review and confirm the exact fields.");
         EditText original = field(h, form, "Your plan, in your own words", "", TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         original.setSingleLine(false); original.setMinLines(4); original.setMaxLines(9);
         original.setGravity(Gravity.TOP);
@@ -40,22 +40,29 @@ public final class ConversationPlanScreen {
         Button voice = button(h, "Speak a draft", false);
         voice.setOnClickListener(view -> h.startPlanVoice(original)); form.addView(voice);
         h.paragraph(form, "Speech recognition is optional. Check the transcript, names, dates and amount before reviewing it. The text stays editable.");
+        Button ai = button(h, "Use AI to prepare draft", false);
+        form.addView(ai);
         TextView error = error(h, form);
         AlertDialog input = h.dialog().setTitle("Plan in your own words").setView(scroll(h, form))
                 .setNegativeButton("Cancel", null).setPositiveButton("Review draft", null).create();
+        ai.setOnClickListener(view -> {
+            String verbatim = original.getText().toString();
+            if (verbatim.trim().isEmpty()) { original.setError("Describe the plan first"); return; }
+            ConversationAiPlanScreen.show(h, source, original, verbatim, input);
+        });
         input.setOnShowListener(unused -> input.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
             String verbatim = original.getText().toString();
             if (verbatim.trim().isEmpty()) { original.setError("Describe the plan first"); return; }
             Button review = input.getButton(AlertDialog.BUTTON_POSITIVE);
-            review.setEnabled(false); voice.setEnabled(false); original.setEnabled(false);
+            review.setEnabled(false); ai.setEnabled(false); voice.setEnabled(false); original.setEnabled(false);
             error.setText("Preparing an editable draft…");
             h.previewConversation(source, verbatim, draft -> h.runOnUiThread(() -> {
                 if (!alive(h) || !input.isShowing()) return;
-                review.setEnabled(true); voice.setEnabled(true); original.setEnabled(true); error.setText("");
+                review.setEnabled(true); ai.setEnabled(true); voice.setEnabled(true); original.setEnabled(true); error.setText("");
                 review(h, source, draft, input);
             }), message -> h.runOnUiThread(() -> {
                 if (!alive(h) || !input.isShowing()) return;
-                review.setEnabled(true); voice.setEnabled(true); original.setEnabled(true);
+                review.setEnabled(true); ai.setEnabled(true); voice.setEnabled(true); original.setEnabled(true);
                 error.setText(message(message, "The draft could not be prepared. Your words are still here; edit them and try again."));
             }));
         }));
@@ -113,7 +120,20 @@ public final class ConversationPlanScreen {
 
     private static void review(CompanionActivity h, CompanionWorkspace.Snapshot source,
                                ConversationBudget.Draft draft, AlertDialog input) {
+        review(h, source, draft, input, "", "", "");
+    }
+
+    static void reviewAi(CompanionActivity h, CompanionWorkspace.Snapshot source, ConversationAiPlanner.Result result,
+                         AlertDialog input, String provider, String model) {
+        review(h, source, result.draft, input, result.suggestedName, result.suggestedCategory,
+                "AI-prepared tentative draft · " + provider + " · " + model
+                + ". These editable suggestions are untrusted. Amounts and dates were checked against your wording; missing details stay unresolved. Only the local impact review can check your budget; no affordability verdict came from the model.");
+    }
+
+    private static void review(CompanionActivity h, CompanionWorkspace.Snapshot source,
+                               ConversationBudget.Draft draft, AlertDialog input, String suggestedName, String suggestedCategory, String provenance) {
         LinearLayout form = form(h);
+        if (!provenance.isEmpty()) h.paragraph(form, provenance);
         h.paragraph(form, "Your original words are retained with the reviewed proposal:");
         TextView original = h.label(draft.originalText, 14, CompanionActivity.INK);
         original.setTextIsSelectable(true); original.setPadding(0, h.dp(4), 0, h.dp(12)); form.addView(original);
@@ -121,8 +141,8 @@ public final class ConversationPlanScreen {
             h.paragraph(form, "A few details need your choice. Fill or correct the fields below:");
             for (String issue : draft.issues) h.paragraph(form, "• " + issue);
         }
-        EditText name = field(h, form, "Name this allocation", "", TEXT);
-        EditText category = field(h, form, "Category", "", TEXT);
+        EditText name = field(h, form, "Name this allocation", suggestedName, TEXT);
+        EditText category = field(h, form, "Category", suggestedCategory, TEXT);
         category.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(120)});
         Button chooseCategory = button(h, "Choose an existing category", false);
         chooseCategory.setOnClickListener(view -> {

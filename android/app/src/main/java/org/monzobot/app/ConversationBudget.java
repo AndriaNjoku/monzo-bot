@@ -141,6 +141,18 @@ public final class ConversationBudget {
         return new Draft(original, amount, from, to, issues);
     }
 
+    /** Only clear parsed fields or retain their exact values; AI cannot introduce new money/date evidence. */
+    static Draft aiDraft(Draft parsed, Long amountPence, String from, String to) {
+        Objects.requireNonNull(parsed, "parsed");
+        if (amountPence != null && !amountPence.equals(parsed.amountPence)) throw invalid("AI amount is not supported by the original message");
+        if ((from == null) != (to == null) || from != null && (!from.equals(parsed.from) || !to.equals(parsed.to)))
+            throw invalid("AI dates are not supported by the original message");
+        List<String> issues = new ArrayList<>(parsed.issues);
+        if (amountPence == null && parsed.amountPence != null) issues.add("The AI left the amount unresolved. Choose it explicitly before reviewing.");
+        if (from == null && parsed.from != null) issues.add("The AI left the dates unresolved. Choose them explicitly before reviewing.");
+        return new Draft(parsed.originalText, amountPence, from, to, issues);
+    }
+
     /** Create once for reviewed fields, then retain this Proposal/token through preview and confirmation. */
     public static Proposal review(Draft draft, String name, String category, String from, String to,
                                   long amountPence, Mode mode, LocalDate today) {

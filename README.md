@@ -20,7 +20,7 @@ Financial data is stored locally using Android Keystore AES-GCM and atomic write
 - Generic notifications with private lock-screen version, six-hour global cooldown, three-per-day cap, stable event deduplication and quiet hours. Future/unknown balances and commitments are never claimed.
 - Home-screen widget deliberately hides financial amounts and opens the private dashboard.
 - Source coverage remains unknown: successful retrieval and latest transaction do not prove current bank data. The app shows retrieval age and uncertainty.
-- Optional AI uses bounded local read-only tools after explicit per-question provider consent. Numeric/date facts are the default; merchant/category/type/plan labels require a separate opt-in. Typed questions are sent as written. Notes, addresses, receipts, Pot names and source IDs stay out of tool results. Remembering a key is optional and uses a separate encrypted credential file excluded from financial exports. Model choice and provider charges belong to the user.
+- Optional AI offers implemented OpenAI and Anthropic adapters with per-provider keys/models and fresh named-provider consent. [Provider details](docs/BYOK_PROVIDERS.md) describe protocol limits and legacy model defaults. Ask uses bounded local read-only tools after explicit per-question provider consent. Numeric/date facts are the default; merchant/category/type/plan labels require a separate opt-in. Typed questions are sent as written. Notes, addresses, receipts, Pot names and source IDs stay out of tool results. Remembering a key is optional and uses provider-isolated encrypted credential files excluded from financial exports. Model choice and provider charges belong to the user.
 - No recurring-payment guarantee, payment execution, connected bank balance, native Mac app, Firebase service, paid hosted CI or cloud financial database.
 
 Only synthetic test data is committed. Never place financial exports, credentials, signing keys or OAuth user identifiers in this repository. App name/branding needs review before a public product launch.
@@ -43,3 +43,5 @@ Requires Node 22+ for tests and Python 3 for the loopback static server. Open ht
 ## Development
 
 MIT licensed. Android dependencies and Gradle are pinned; build and validation instructions are in [android/README.md](android/README.md). Portable synthetic domain and Sheets-response tests live in `android/domain-tests` and `android/sync-tests`. Hosted CI and automatic deployments are intentionally absent.
+
+Optional conversational AI planning can prepare an editable tentative proposal from an approved message using the selected BYOK provider. Amount/date evidence is validated locally, then affordability is reviewed and the user explicitly confirms the local allocation. The offline rule parser remains available. See [planning flow and privacy boundary](docs/CONVERSATIONAL_PLANNING.md).
