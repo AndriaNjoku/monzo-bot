@@ -48,7 +48,7 @@ final class SecureStore {
    catch(Exception e){if(out!=null)file.failWrite(out);throw e;}
   }
  }
- void clear() throws Exception { synchronized(LOCK){file.delete();KeyStore ks=KeyStore.getInstance("AndroidKeyStore");ks.load(null);ks.deleteEntry(ALIAS);new CompanionKeyStore(context).clear();BudgetWidget.refresh(context);} }
+ void clear() throws Exception { synchronized(LOCK){file.delete();KeyStore ks=KeyStore.getInstance("AndroidKeyStore");ks.load(null);ks.deleteEntry(ALIAS);CompanionKeyStore.clearAll(context);BudgetWidget.refresh(context);} }
  static JSONObject defaults() throws JSONException {
   LocalDate now=LocalDate.now();return new JSONObject().put("version",1).put("workspaceId",UUID.randomUUID().toString()).put("mode","local").put("status","Choose a source or explore the synthetic demo.").put("start",now.withDayOfMonth(1).toString()).put("end",now.withDayOfMonth(now.lengthOfMonth()).toString()).put("threshold",80).put("quietStart",21).put("quietEnd",8).put("notifications",false).put("transactions",new JSONArray()).put("budgets",new JSONObject()).put("overrides",new JSONObject()).put("sent",new JSONObject());
  }
