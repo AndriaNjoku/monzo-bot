@@ -169,6 +169,9 @@ test('provider consent is fresh, edits revoke it and no AI request happens autom
     'Allow this question and selected financial facts to be processed by OpenAI';
   expect(button('Ask OpenAI with local evidence').props.disabled).toBe(true);
   await toggle(consent, true);
+  expect(button('Ask OpenAI with local evidence').props.disabled).toBe(true);
+  expect(ask).not.toHaveBeenCalled();
+  await press('Continue with OpenAI');
   expect(button('Ask OpenAI with local evidence').props.disabled).toBe(false);
   await edit('OpenAI model ID', 'synthetic-model');
   expect(button('Ask OpenAI with local evidence').props.disabled).toBe(true);
@@ -243,6 +246,7 @@ test('AI preparation sends no request before separately named consent and opens 
     'Allow this message and reference date to be processed by OpenAI',
     true,
   );
+  await press('Continue with OpenAI');
   await press('Send to OpenAI & prepare draft');
   expect(preparePlan).toHaveBeenCalledTimes(1);
   const options = call(preparePlan).mock.calls[0][0];
@@ -282,6 +286,7 @@ test('switching providers ignores an in-flight planning response', async () => {
     'Allow this message and reference date to be processed by OpenAI',
     true,
   );
+  await press('Continue with OpenAI');
   await press('Send to OpenAI & prepare draft');
   expect(preparePlan).toHaveBeenCalledTimes(1);
   const choose = tree.root.findAll(
@@ -338,4 +343,53 @@ test('multiple spreadsheet candidates require explicit choice', async () => {
     id: 'synthetic-sheet-two',
     name: 'Example export two',
   });
+});
+
+test('AI privacy notice cancels without consent and invalidates on provider change', async () => {
+  await mount();
+  await tab('Ask');
+  await edit('OpenAI API key', 'synthetic-private-key');
+  await edit('What would you like help with?', 'Help with my bills');
+  const consent =
+    'Allow this question and selected financial facts to be processed by OpenAI';
+  await toggle(consent, true);
+  expect(text()).toContain('your reported balance');
+  expect(text()).toContain('Label sharing is off');
+  const cancelledContinue = button('Continue with OpenAI').props.onPress;
+  await press('Cancel AI consent');
+  await act(async () => cancelledContinue());
+  expect(button('Ask OpenAI with local evidence').props.disabled).toBe(true);
+  await toggle(consent, true);
+  const oldContinue = button('Continue with OpenAI').props.onPress;
+  const other = tree.root.findAll(
+    node =>
+      node.props.accessibilityLabel === 'Use Anthropic' &&
+      typeof node.props.onPress === 'function',
+  )[0];
+  await act(async () => other.props.onPress());
+  expect(button('Continue with OpenAI')).toBeUndefined();
+  await act(async () => oldContinue());
+  expect(button('Ask Anthropic with local evidence').props.disabled).toBe(true);
+  expect(ask).not.toHaveBeenCalled();
+  expect(preparePlan).not.toHaveBeenCalled();
+});
+
+test('privacy notice is dismissed when question or label scope changes', async () => {
+  await mount();
+  await tab('Ask');
+  await edit('OpenAI API key', 'synthetic-private-key');
+  await edit('What would you like help with?', 'Help with bills');
+  const consent =
+    'Allow this question and selected financial facts to be processed by OpenAI';
+  await toggle(consent, true);
+  await edit('What would you like help with?', 'Different question');
+  expect(button('Continue with OpenAI')).toBeUndefined();
+  await toggle(consent, true);
+  await toggle('Share merchant, category and plan labels', true);
+  expect(button('Continue with OpenAI')).toBeUndefined();
+  await toggle(consent, true);
+  expect(text()).toContain('Label sharing is on');
+  await press('Continue with OpenAI');
+  expect(button('Ask OpenAI with local evidence').props.disabled).toBe(false);
+  expect(ask).not.toHaveBeenCalled();
 });

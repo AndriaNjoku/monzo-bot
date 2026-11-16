@@ -1,3 +1,4 @@
+import { AiPrivacyConsent } from './src/ui/AiPrivacyConsent';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -657,6 +658,11 @@ function ProviderFields({
         ))}
       </View>
       <Body>{provider.host} · Your own API account</Body>
+      <Body>
+        Choosing a provider or entering a key sends no financial data. Review
+        the privacy notice and choose Continue, then use the separate Send or
+        Ask button.
+      </Body>
       <Field
         label={`${provider.name} API key`}
         value={session.key}
@@ -2134,7 +2140,21 @@ function ConversationEditor({
             maxLength={4000}
           />
           <ProviderFields session={session} revoke={() => setConsent(false)} />
-          <Toggle
+          <AiPrivacyConsent
+            provider={provider.name}
+            host={provider.host}
+            purpose="plan"
+            contextToken={finance.sha256(
+              JSON.stringify([
+                session.provider,
+                session.key,
+                session.model,
+                session.remember,
+                message,
+                revision,
+                today(),
+              ]),
+            )}
             label={`Allow this message and reference date to be processed by ${provider.name}`}
             value={consent}
             onChange={setConsent}
@@ -2516,7 +2536,23 @@ function AskScreen({
             sharing above. Review personal details in your question before
             consenting.
           </Note>
-          <Toggle
+          <AiPrivacyConsent
+            provider={provider.name}
+            host={provider.host}
+            purpose="ask"
+            labels={labels}
+            contextToken={finance.sha256(
+              JSON.stringify([
+                session.provider,
+                session.key,
+                session.model,
+                session.remember,
+                question,
+                labels,
+                revision,
+                today(),
+              ]),
+            )}
             label={`Allow this question and selected financial facts to be processed by ${provider.name}`}
             value={consent}
             disabled={pending}

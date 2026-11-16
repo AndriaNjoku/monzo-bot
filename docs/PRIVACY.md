@@ -13,3 +13,11 @@ Voice uses a supported Android on-device recognizer only after contextual permis
 Plaintext JSON export requires deliberate destination selection and a warning; exported files are no longer protected by this app. Separately approved notes/calendar handoffs show minimal draft fields, exclude original wording/sourceIDs and start with amounts off. The destination application may sync reviewed content under its own account policies. No automatic calendar save or message is made. Disconnect stops device access and clears cached tokens; Google grants can separately be revoked in Google Account settings.
 
 No analytics, ads, hosted financial database or background AI is configured. Real device Keystore/backup/lifecycle behaviour and live Google/provider acceptance still require verification before a public product release.
+
+## Just-in-time AI permission notice
+
+Before enabling a request's processing permission, the app names the selected provider and shows Continue and Cancel. Continue only enables the existing Send action; it does not contact the provider or save a key. Cancelling leaves processing disabled. Changing the provider, key, model, message, label-sharing choice or relevant source context invalidates the permission/review.
+
+For Ask, the disclosure includes the question as written, reference/retrieval dates, and bounded read-only tool results that may contain individual transaction amounts/dates, spending totals, budgets, user-reported balance/reserve and commitment amounts/due dates. Merchant/category/type and plan labels require the separate label-sharing choice. This is not merely anonymous aggregate data. Raw source notes, addresses, receipts, Pot names and original transaction IDs are excluded from tool output, but anything the user types may contain private information.
+
+For AI plan preparation, the notice instead states that the approved message, reference date and draft instructions are sent, not imported financial context. The user's API key authenticates requests only to the selected provider endpoint. API usage is charged according to that account; training and retention depend on the provider's applicable policies and settings, not a guarantee made by this app. Existing provider-specific optional key storage remains separate.
