@@ -1,6 +1,6 @@
 # Privacy
 
-Monzo Bot is independent and unofficial. Financial data stays in Android app-private no-backup storage encrypted with Android Keystore AES-GCM. Google access tokens stay in memory. The same original financial file/alias/envelope and provider credential slots are retained for compatible in-place updates. Corrupt/unsupported data fails closed; it is not silently reset.
+Monzo Bot is independent and unofficial. By default, financial data is stored locally in Android app-private no-backup storage encrypted with Android Keystore AES-GCM. Google access tokens stay in memory. The same original financial file/alias/envelope and provider credential slots are retained for compatible in-place updates. Corrupt/unsupported data fails closed; it is not silently reset.
 
 Google authorization grants read-only Sheets and Drive metadata access. Discovery lists spreadsheet metadata; source cells are read only after explicit selection. Source exports are never modified. No hard-coded personal spreadsheet ID, transaction, account identifier, API key or signing key is included in source.
 
@@ -10,7 +10,7 @@ Remembering a provider key is optional. Each provider has its own encrypted no-b
 
 Voice uses a supported Android on-device recognizer only after contextual permission. There is no cloud fallback or app-created recording file. A transcript remains editable; sending it to an AI provider requires the separate AI approval. Financial screens use Android FLAG_SECURE. Generic notification/widget content contains no amounts, merchants or categories. Device/platform restrictions and compromised devices remain outside these protections.
 
-Plaintext JSON export requires deliberate destination selection and a warning; exported files are no longer protected by this app. Separately approved notes/calendar handoffs show minimal draft fields, exclude original wording/sourceIDs and start with amounts off. The destination application may sync reviewed content under its own account policies. No automatic calendar save or message is made. Disconnect stops device access and clears cached tokens; Google grants can separately be revoked in Google Account settings.
+Plaintext JSON export requires deliberate destination selection and a warning; exported files are no longer protected by this app. Separately approved notes/calendar handoffs show minimal draft fields, exclude original wording/source IDs and start with amounts off. The destination application may sync reviewed content under its own account policies. No automatic calendar save or message is made. Disconnect stops device access and clears cached tokens; Google grants can separately be revoked in Google Account settings.
 
 No analytics, ads, hosted financial database or background AI is configured. Real device Keystore/backup/lifecycle behaviour and live Google/provider acceptance still require verification before a public product release.
 

@@ -2,6 +2,10 @@
 
 Research checkpoint: 16 November 2026. This is an unofficial open-source companion, not a bank, financial adviser or a claim of a unique invention.
 
+## Product intent
+
+Make this genuinely useful for its owner first: understand imported transactions, bills and personal planning context, explain evidence and propose helpful next steps under clear user-controlled permissions. Keep the project open source so others can inspect, adapt and contribute. This is not a monetisation roadmap. Later blog/LinkedIn discussion should show verified capabilities with synthetic examples, not personal financial data or claims of autonomous banking. External posts require separate approval.
+
 ## Existing alternatives
 
 - [Actual Budget schedules](https://actualbudget.org/docs/schedules/) already support recurring transactions and planning.
