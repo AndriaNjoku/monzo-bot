@@ -1,6 +1,6 @@
 {
   "name": "monzo-bot",
-  "version": "0.4.0",
+  "version": "0.5.0-alpha.1",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -9,7 +9,8 @@
     "start": "react-native start",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "test:ci": "jest --runInBand"
+    "test:ci": "jest --runInBand",
+    "version:check": "node scripts/check-version.cjs"
   },
   "dependencies": {
     "react": "19.3.0",
@@ -39,6 +40,6 @@
     "@types/node": "26.6.6"
   },
   "engines": {
-    "node": ">= 22.11.0"
+    "node": "^22.13.0 || ^24.3.0 || >=26.0.0"
   }
 }

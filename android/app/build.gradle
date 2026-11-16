@@ -82,8 +82,8 @@ android {
         applicationId "org.monzobot.app"
         minSdkVersion 30
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 400
-        versionName "0.4.0-alpha"
+        versionCode 501
+        versionName "0.5.0-alpha.1"
     }
     // Preserve the installed identity. No generated/template signing key is used.
     // Supply the ORIGINAL private keystore locally for an installable update.

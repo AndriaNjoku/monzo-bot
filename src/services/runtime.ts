@@ -1,3 +1,4 @@
+import { readBillSettings } from '../domain/bills';
 import { device } from '../platform/native';
 import {
   createWorkspace,
@@ -36,7 +37,9 @@ function safeData(value: unknown): Workspace {
     }
   };
   inspect(value);
-  return validateWorkspace(value);
+  const workspace = validateWorkspace(value);
+  readBillSettings(workspace);
+  return workspace;
 }
 async function load(): Promise<Workspace> {
   return exclusive(async () => {
@@ -212,7 +215,18 @@ export const runtime = {
           sourceAsOf: '',
         };
     // Imported Google grants are never trusted on a different device.
-    const next = { ...imported, authorized: false };
+    const next = {
+      ...imported,
+      authorized: false,
+      companionBills: {
+        confirmedCandidateIds: [],
+        ...(typeof imported.companionBills === 'object' &&
+        imported.companionBills !== null
+          ? imported.companionBills
+          : {}),
+        enabled: false,
+      },
+    };
     await save(next);
     return next;
   },

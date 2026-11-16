@@ -789,6 +789,7 @@ export function workspaceRevision(w: Workspace): string {
     'overrides',
     'companionPlan',
     'conversationBudgets',
+    'companionBills',
     'budgets',
     'start',
     'end',
