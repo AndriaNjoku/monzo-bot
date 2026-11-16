@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as finance from './src/domain';
+import { BillReview } from './src/ui/BillReview';
 import {
   ask,
   preparePlan,
@@ -1003,6 +1004,7 @@ function Home({
     <ScrollView contentContainerStyle={styles.screen}>
       <Heading>{'Your money,\nmore clearly.'}</Heading>
       <SourceNote data={data} />
+      <BillReview data={data} commit={commit} />
       {!overview.transactionCount ? (
         <Card title="Make your transactions useful" tint>
           <Body>

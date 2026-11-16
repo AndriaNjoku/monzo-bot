@@ -123,3 +123,29 @@ it('provider forgetting is explicit and isolated, voice just returns an editable
   expect(await runtime.voice()).toBe('Synthetic editable transcript');
   expect(mockNative.saveWorkspace).not.toHaveBeenCalled();
 });
+
+it('restoring a workspace preserves bill audit data but requires fresh local scan opt-in', async () => {
+  const data = createWorkspace();
+  data.companionBills = {
+    enabled: true,
+    confirmedCandidateIds: ['a'.repeat(64)],
+  };
+  mockPicked = JSON.stringify(data);
+  const restored = await runtime.importData();
+  expect(restored.companionBills).toEqual({
+    enabled: false,
+    confirmedCandidateIds: ['a'.repeat(64)],
+  });
+  expect(restored.transactions).toEqual(data.transactions);
+});
+
+it('rejects malformed bill permissions before persisting an imported workspace', async () => {
+  const data = createWorkspace();
+  mockStored = JSON.stringify(data);
+  data.companionBills = { enabled: 'yes', confirmedCandidateIds: [] };
+  mockPicked = JSON.stringify(data);
+  await expect(runtime.importData()).rejects.toThrow(
+    'Invalid local bill settings',
+  );
+  expect(mockNative.saveWorkspace).not.toHaveBeenCalled();
+});

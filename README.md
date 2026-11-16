@@ -26,6 +26,12 @@ Google read-only OAuth must be configured for this package and the **actual sign
 - On-device voice where Android supports it; editable transcript and honest typing fallback. Calendar and notes handoffs each require a separate preview/approval; amounts start excluded.
 - Private on-device check-ins with Android permission/channel controls, quiet hours, cooldowns, daily caps and optional quiet persistent status. Background checks inspect the stored export; they do **not** fetch live bank data or invoke AI. Refresh Google inside the app. OS restrictions can delay delivery.
 
+## Local bill review
+
+Home now offers an off-by-default local bill-analysis permission. Review equal-amount weekly/monthly candidates against their transaction evidence, edit the amount/date, and explicitly confirm a local plan commitment. No bank action, AI call, sharing or reminder is performed. Variable or irregular bills may be missed; a refreshed export still does not establish complete coverage. Revocation leaves previously confirmed commitments unchanged. Restoring a backup requires a fresh scan opt-in.
+
+See [financial assistant direction and integration boundaries](docs/ASSISTANT_DIRECTION.md) for researched alternatives and why the personal Monzo Developer API is not a general public integration solution.
+
 ## Verification and limits
 
 Run `npm run typecheck`, `npm test -- --runInBand`, and `npm run lint`. Android native checks use `android/gradlew testDebugUnitTest lintDebug`; an unsigned release build can validate packaging without changing signing identity. All committed fixtures/tests are synthetic; transport tests use fake responses and keys.
